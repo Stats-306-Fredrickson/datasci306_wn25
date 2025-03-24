@@ -549,6 +549,82 @@ pmap_dbl(list(x, y, z), ~..1 + ..2 +..3)
 ```
 
 
+## Safe Iterations
+-The `safely()` function in R (from the `purrr` package) is useful when running functions that might fail. Instead of stopping execution when an error occurs, it returns a list containing the result (if successful) or the error (if failed). This is particularly useful when applying a function over multiple elements where some might cause errors.
+
+### Basic Usage
+
+```{r}
+safe_log <- safely(log)
+
+# Example with valid input
+safe_log(10)
+
+# Example with invalid input
+safe_log("a")
+```
+
+### Applying to a List of Inputs
+
+```{r}
+inputs <- list(10, 100, "a", 0, -5)
+results <- map(inputs, safe_log)
+```
+
+### To extract results and errors separately:
+
+```{r}
+log_results <- map(results, "result")
+log_errors <- map(results, "error")
+
+log_results  # Successful results
+log_errors   # Errors encountered
+```
+
+
+## **Exercise: Handling API Requests with safely() and map()**
+
+### **Situation:**
+You are working with an API that fetches weather data for multiple cities. However, some city names may be misspelled or unavailable, causing errors in the API request. Your task is to safely retrieve weather data without stopping execution when an error occurs.
+
+### **Steps:**
+
+1. **Create a list** of city names (some valid, some invalid):
+   
+   ```{r}
+   cities <- list("New York", "Los Angeles", "InvalidCity", "Chicago", "AnotherFakeCity")
+   ```
+
+2. **Define a function** to simulate an API request:
+   - Assume `get_weather(city)` fetches weather data.
+   - Use `safely()` to wrap the function and handle errors.
+   ```{r}
+   get_weather <- function(city) {
+  if (city %in% c("InvalidCity", "AnotherFakeCity")) {
+    stop("City not found")  # Simulate an API failure
+  }
+  return(paste("Weather data for", city))
+}
+   ```
+
+3. **Apply your function** using `map()` to process all cities.
+
+4. **Extract results **, then:
+   - Print the successfully retrieved weather data.
+
+
+### Exercise 0
+```{r Ex0, exercise=TRUE}
+## Your code here
+```
+
+```{r Ex0-solution}
+safe_get_weather <- safely(get_weather)
+weather_results <- map(cities, safe_get_weather)
+valid_weather <- map(weather_results, "result") %>% compact()
+print(valid_weather)
+```
+
 ## Putting it all together
 **Inspecting our data (gapminder)**        
 
