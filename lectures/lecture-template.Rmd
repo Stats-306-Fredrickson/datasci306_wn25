@@ -1,0 +1,31 @@
+---
+subtitle: "Data Science 306: Lecture NUMBER"
+title: "TITLE"
+output: 
+  learnr::tutorial:
+    progressive: true
+    css: css/lecture.css
+runtime: shiny_prerendered
+---
+
+
+```{r setup, include=FALSE}
+library(learnr)
+library(tidyverse)
+```
+
+## Slide
+
+* This is a bullet point
+* This is also a bullet point
+
+```{r}
+# here is some R code
+n <- 100
+x <- rpois(n, lambda = 10)
+y <- 2 - x + rnorm(100, sd = sd(x))
+df <- tibble(x, y)
+ggplot(df, aes(x, y)) + geom_point()
+```
+
+
