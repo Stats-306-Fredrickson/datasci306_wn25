@@ -1,0 +1,368 @@
+---
+subtitle: "Data Science 306: Lecture 26"
+title: "Packages and Object Oriented Programming"
+output: 
+  learnr::tutorial:
+    progressive: true
+    css: css/lecture.css
+runtime: shiny_prerendered
+---
+
+
+```{r setup, include=FALSE}
+library(learnr)
+library(tidyverse)
+```
+
+## Overview
+
+In this lecture we will look at two topics:
+
+* Packages: add-on functionality for R
+* Object Oriented Programming: reuse of functions and data structures by defining classes of objects
+
+## Packages
+
+An **R package** is a collection of code and data that can be loaded using the `library` function. Library can use either "bare words" or quoted names.
+
+```{r}
+library(parallel)
+library("boot")
+```
+
+You may also see `require` which allows you to handle if the package is not available in a graceful way:
+
+```{r}
+
+if (!require("package_that_does_not_exist")) {
+  message("oops! not available!")
+}
+```
+## Installing Packages
+
+The Comprehensive R Archive Network provides hosting for packages. Installing is as simple as:
+
+```{r, eval = FALSE}
+install.packages("package_name") # notice use of quotes
+```
+
+You may have to select a host. Usually the "cloud" option is best.
+
+Packages can also be installed from files on the drive, github, and arbitrary URLs. A useful helper to make this easier is the `devtools` package:
+
+```{r, eval = FALSE}
+install.packages("devtools")
+
+library(devtools)
+install_github("USERNAME/repo")
+```
+
+
+## Source and Binary packages
+
+Many R packages have C/C++ or FORTRAN (an older scientific programming language) that needs to be **compiled** to programs that can run in your particular operating system.
+
+For most operating systems, CRAN provides pre-compiled **binary** packages where the compilation has been done in advance. These are nice because you don't need the right compiler and set of C/C++ or FORTRAN libraries.
+
+For other operating systems, or if you want to compile yourself, you can get **source** packages by adding the `type = "source"` option to `install.packages()`. Installing packages with C/C++ or FORTRAN from github will require the appropriate compilers.
+
+Getting compilers set up is outside our scope, but [details can be found on CRAN](https://cran.r-project.org/).
+
+## Package Dependencies
+
+Packages can require or extend the functionality of other packages.
+
+* Imports: these packages will always be installed along with this package. Critical functionality.
+* Suggests: provides additional useful functionality, but the package will use `require` to make sure the package is available.
+* Depends: Like imports but will load this package into the user's environment to make it available as well.
+
+Usually, all will be installed as well when using `install.packages` but users can elect to skip Suggests.
+
+## Visiting the Comprehensive R Archive Network (CRAN)
+
+* [CRAN homepage](https://cran.r-project.org/)
+* Example package: [Shiny](https://cran.r-project.org/web/packages/shiny/index.html)
+
+## Creating your own packages
+
+* Create a new Posit Cloud project
+* Install `devtools` package
+* Use the `devtools::create("name_of_package")
+* More can be found at [R Packages by Wickham and Bryan](https://r-pkgs.org/)
+
+## Object Oriented Programming
+
+Everything we create in R is an "object", something that can be put into a variable/passed as an argument/returned from a function.
+
+*Object oriented programming* explains how define types of objects and what we can do. There are many kinds of object oriented programming, but they commonly share:
+
+* **Polymorphism**: "many shapes", many different types of objects can all be used in the same way
+* **Inheritance**: we can define new types of objects by referencing existing types of objects.
+
+We often call these "types" **classes**.
+
+## Classes, fields, methods
+
+* A **class** in R defines a structure for data. The components are called **fields**.
+* R actually has several different ways of defining classes called S3, S4, and R6. The "S" indicates the predecessor to R and the number the sequential version number.
+* A **method** is a version of a function that works for a particular class.
+
+## Generic functions and methods
+
+Some languages package methods within the classes. In R, we define **generic functions** that specify the interface for all classes, and then **methods** are versions of the function that work for specific data.
+
+Example: `mean`:
+
+```{r}
+# generic
+mean
+
+# what methods exist?
+methods(mean)
+
+nums <- c(1, 15, -2, 6)
+dates <- as.Date(c("2024-04-16", "1776-07-04"))
+
+mean(nums)
+mean(dates)
+```
+
+Selecting the appropriate method based on the type is called **method dispatch**.
+
+## More on R's class systems
+
+* S3: Informal system where the `class` attribute is set on the object to say what it is. A common convention is to name methods `function.class` (e.g., `mean.Date`) but this is not enforced.
+* S4: Formal class system with more work to set up but more guarantees. Method dispatch can be on more than one argument's object type.
+* RC/R6: "reference" classes that solve a particular problem related to sharing memory. 
+
+You can do a lot with S3 and upgrade to S4 when you want more formality. Reference classes are rarely a first choice, but can be useful in certain circumstances.
+
+## S3: setting attributes of existing things
+
+The `factor` type in R is a special version of an integer vector:
+
+```{r}
+f <- factor(c("a", "b", "c"))
+
+typeof(f)
+class(f)
+attributes(f)
+```
+
+We can remove the `class` attribute and it becomes an integer vector:
+```{r}
+i <- unclass(f)
+
+typeof(i)
+class(i)
+attributes(i)
+```
+
+Using the `print` generic function on both:
+```{r}
+print(f)
+print(i)
+```
+
+If we wanted to fully remove the factor bits:
+```{r}
+i2 <- i
+attr(i2, "levels") <- NULL
+print(i2)
+```
+
+## Exercise
+
+What class of object does the following code return? What base type is it built on (`typeof`)? What attributes does it use?
+
+```{r exercise-table-class, exercise = TRUE}
+x <- table(rpois(100, 5))
+x
+```
+
+## Making our own S3 classes
+
+As an informal system, we create S3 objects as we need them using the `class<-` function. A really common existing object to build on is a `list`.
+
+```{r}
+# Create and assign class in one step
+x <- structure(list(), class = "my_class")
+class(x)
+
+# Create, then set class
+x <- list()
+class(x) <- "my_class"
+class(x)
+```
+
+E.g. Creating a class for students in a course:
+
+```{r}
+gordy <- list(name = c(First = "Gordy", Last = "Bluestone"),
+          major = "Data Science",
+          transcript = list(FA23 = c("DATASCI101" = "A-",
+                                     "PHIL101" = "B+"),
+                            WN24 = c("MATH113" = "A")))
+
+class(gordy) <- "student"
+gordy$name
+gordy$transcript
+```
+
+## Constructors
+
+We often write **constructor functions** to generate new objects of a given type:
+
+```{r}
+make_student <- function(first, last, major, transcript) {
+  x <- list(name = c(First = first, Last = last),
+          major = major,
+          transcript = transcript)
+  class(x) <- "student"
+  
+  return(x)
+}
+
+gordy <- make_student("Gordy", "Bluestone", "Data Science",
+             list(FA23 = c("DATASCI101" = "A-",
+                           "PHIL101" = "B+"),
+                  WN24 = c("MATH113" = "A")))
+
+ann <- make_student("Ann", "Otherstudent", "Econ",
+             list(WN25 = c("ECON101" = "A")))
+```
+
+It might make sense to make transcripts a class as well.
+
+### Writing a method
+
+Let's use the `mean` function to compute the student's GPA.
+
+```{r}
+formals(mean)
+```
+
+
+```{r}
+honor_points <- c(
+  "A+" = 4.0,
+  "A" = 4.0,
+  "A-" = 3.7,
+  "B+" = 3.3,
+  "B" = 3.0,
+  "B-" = 2.7,
+  "C+" = 2.3,
+  "C" = 2.0,
+  "C-" = 1.7,
+  "D+" = 1.3,
+  "D" = 1.0,
+  "D-" = 0.7,
+  "E" = 0.0,
+  "P" = 0.0,
+  "F" = 0.0,
+  "CR" = 0.0,
+  "NC" = 0.0
+)
+
+# create the function with the same signature as `mean`
+mean.student <- function(x, ...) {
+  ts <- x$transcript |> unlist()
+  points <- honor_points[ts]
+  mean(points)
+}
+
+mean.student(gordy)
+mean.student(ann)
+```
+
+
+```{r}
+mean(gordy)
+methods(mean)
+```
+
+## Writing our own generic functions
+
+Suppose we needed a function to generate a greeting for someone.
+
+```{r}
+greet <- function(x) {
+  UseMethod("greet")
+}
+
+methods(greet)
+```
+
+We can set a default:
+```{r}
+greet.default <- function(x) {
+  paste("Hello,", format(x))
+}
+
+greet(3)
+greet(gordy)
+```
+
+## Improving with a method
+
+```{r}
+greet.student <- function(x) {
+  name <- paste(x$name, collapse = " ")
+  greet(name)
+}
+
+greet(gordy)
+```
+
+## Inheritance: using existing classes
+
+Let's create an new class for alumni:
+
+```{r}
+make_alumnus <- function(student, year) {
+  student$graduated <- year
+  class(student) <- c("alumnus", class(student))
+  student
+}
+
+grad_gordy <- make_alumnus(gordy, 2025)
+
+print(grad_gordy)
+mean(grad_gordy)
+greet(grad_gordy)
+```
+
+Showing more respect:
+
+```{r}
+greet.alumnus <- function(x) {
+  v <- NextMethod()
+  paste(v, "-- Class of ", x$graduated)
+}
+
+greet(gordy)
+greet(grad_gordy)
+```
+
+## S4 Classes
+
+With S4 classes, we define exactly what fields we want:
+
+```{r}
+setClass("s4student",
+           slots = c(name = "character",
+                     transcript = "list"))
+
+setClass("s4alum", 
+           contains = "s4student",
+           slots = c(graduated = "integer"))
+
+```
+
+This will provide more checking (e.g., can't give a character as the graduated year), but also more up-front work. Still useful to write constructors and other related functions.
+
+More details on dispatch other topics available in [Advanced R chapter 15](https://adv-r.hadley.nz/s4.html)
+
+
+
+
