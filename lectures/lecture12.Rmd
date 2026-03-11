@@ -1,6 +1,6 @@
 ---
 title: "Stats 306: Lecture 12"
-subtitle: "Loading Data, Dates"
+subtitle: "Tables, Loading Data, and Dates"
 output:
   learnr::tutorial:
     progressive: true
@@ -18,12 +18,95 @@ set.seed(2939394)
 ```
 
 
-## Review
+## Tables: from lists of vectors to particular classes
 
-* Covariation
-* Stratification and mixture distributions
-* Lowess/smoothing
-* Tables: matrix, tibbles, data frames
+We introduced our **model of rectangular data** as **lists of vectors**.
+
+There are several R classes that implement this idea:
+
+>* `matrix`: all vectors of same type
+>* `data.frame`: vectors of different types, fewer ammenities
+>* `tibble`: vectors of different types, more features
+>* `data.table`: for data too large to fit in memory
+
+## `matrix`, just one type
+
+Matrix is just all one type (behind the scenes it is just one vector!):
+
+```{r}
+(m <- matrix(1:9, nrow = 3))
+m[, 2] # square bracket indexing
+```
+Can be useful for fast linear algebra computations and very compact storage.
+
+NB: the `array` type can be used for $k$-dimensional objects (tensors).
+
+## `data.frame`, multiple types
+
+`data.frame` can be mixed type vectors (our preferred style):
+```{r}
+(d <- data.frame(colname1 =  1:3, c2 = c("a", "b", "c")))
+```
+
+`data.frame`s can be a little surprising with names. Always give them explicitly.
+
+Convert to a `data.frame`:
+
+```{r}
+as.data.frame(m)
+```
+
+## `tibbles`, modern `data.frame`s
+
+`tibbles` are lighter weight as they don't try to rename as many things or create row names
+
+```{r}
+(tb <- tibble(colname1 =  1:3, c("a", "b", "c")))
+```
+
+But they also give more convenient large table output
+```{r}
+tibble(1:90)
+```
+
+## `tibble` creation
+
+You can list columns with `tibble` or use `as_tibble` to convert a matrix or `data.frame`,
+
+```{r warning = FALSE}
+as_tibble(m) # fyi, I suppressed a warning here
+as_tibble(d)
+```
+
+## Creation by row
+
+Like our data model (lists of vectors), all of these methods are **column oriented**.
+
+If we would prefer to specify our data by row, we can
+```{r}
+tribble(
+  ~ column_name_1, ~ column_name_2,
+  1, "make sure",
+  2, "that you have the right number",
+  7, "per row")
+```
+
+## Final notes on tibbles and data.frames
+
+Observe:
+
+```{r}
+colnames(d)
+d$co
+tb$co
+
+d$doesnotexist
+```
+
+If for some reason you need to use a `data.frame` but you only have a `tibble`,
+```{r}
+as.data.frame(tb)
+```
 
 ## Data Files
 
