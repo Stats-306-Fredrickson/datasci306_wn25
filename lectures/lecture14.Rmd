@@ -1,6 +1,6 @@
 ---
 subtitle: "Stats 306: Lecture 14"
-title: "Relational Data"
+title: "Relational Data: Keys, Joins, and Multi-Table Operations"
 output: 
   learnr::tutorial:
     progressive: true
@@ -267,7 +267,102 @@ The California has an Eastern-most longitude (approx.) of -115. Using the `fligh
 
 ```
 
-## Next time
+## Example: What models of planes fly from NYC to Detroit?
 
->* Wrap up relational operations (13.5 - 13.7)
->* Start to discuss strings and factors (14, 15)
+```{r}
+filter(flights, dest == "DTW") |>
+  left_join(planes, by = "tailnum") |>
+  count(paste(manufacturer, model)) |> arrange(desc(n))
+```
+
+## Inner joins
+
+Inner joins discard entries where a key does not exist in the table. Recall not all destinations are in the airports table (international flights):
+
+```{r}
+left_join(fiveam, airports, by = c("dest" = "faa")) |>
+  select(flight, dest, name)
+```
+
+Inner join would discard that row:
+```{r}
+inner_join(fiveam, airports, by = c("dest" = "faa")) |>
+  select(flight, dest, name)
+```
+
+## Exercise
+
+Use an inner join to find out how many domestic flights there were during the period covered by the `flights` data set.
+
+```{r innerjoin, exercise = TRUE}
+
+```
+
+## Full joins
+
+Left and right joins keep all rows in the respective table (discarding in the other freely). **Full joins** keep all:
+
+```{r}
+left <- head(flights, 10)
+right <- filter(airports, faa %in% c("DTW", "BOS", "ORD", "LAX", "ATL"))
+left_join(left, right, by = c("dest" = "faa")) |> select(flight, dest, name)
+right_join(left, right, by = c("dest" = "faa")) |> select(flight, dest, name)
+full_join(left, right, by = c("dest" = "faa")) |> select(flight, dest, name)
+inner_join(left, right, by = c("dest" = "faa")) |> select(flight, dest, name)
+```
+
+## Multiple matches
+
+Recall that we limited ourselves to 5 airport codes. Notice the number of rows in this join:
+
+```{r}
+right_join(left, right, by = c("dest" = "faa")) |> select(flight, dest, name)
+```
+
+If A's key matches more than one row in B, A gets duplicated that many times. (This is different than `mutate`.)
+
+Note, same behavior with a left join:
+
+```{r}
+# swapping order of table
+left_join(right, left, by = c("faa" = "dest")) |> select(flight, faa, name)
+```
+
+## Keys with multiple columns
+
+Examples thus far have used keys in single columns, but keys can be spread across columns (**compound**).
+
+```{r}
+left_join(fiveam, weather, by = c("year", "month", "day", "hour", "origin")) |>
+  select(flight, temp, wind_dir, wind_speed)
+```
+
+## Natural joins
+
+To avoid lots of redundant typing, if two tables have a set of columns in common, those will automatically be used to join (**natural join**)
+
+```{r}
+left_join(fiveam, weather) |>
+  select(flight, temp, wind_dir, wind_speed)
+```
+
+## Matching multiple keys
+
+What would have happened if the `weather` table used the column name `airport` instead of `origin`? Since `airport` is not a column in `flights`:
+
+```{r}
+left_join(fiveam, weather, by = c("year", "month", "day", "hour")) |>
+  select(flight, origin.x, temp, wind_speed, origin.y)
+```
+
+In a left join, if the same key matches multiple tables in the right, the row gets duplicated for each.
+
+Lesson: Be careful with natural joins and compound keys.
+
+## Relational data wrap up
+
+* When data are stored in more than one table you need to **join**
+* **Mutating joins** join tables to add columns (and sometimes rows!)
+* Outer left/right/full joins, inner joins
+* Also useful for linking table to itself
+* Next time: strings and regular expressions
