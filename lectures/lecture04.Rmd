@@ -1,16 +1,12 @@
 ---
 title: "Stats 306: Lecture 4"
 subtitle: "Data Visualization"
-output: 
-  learnr::tutorial:
-    progressive: true
-    css: css/lecture.css
-runtime: shiny_prerendered
+
 ---
 
 
 ```{r setup, include=FALSE}
-library(learnr)
+# library(learnr)
 library(tidyverse)
 ```
 

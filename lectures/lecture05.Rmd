@@ -1,15 +1,10 @@
 ---
 subtitle: "Stats 306: Lecture 5"
 title: "More on ggplot and Visualization"
-output: 
-  learnr::tutorial:
-    progressive: true
-    css: css/lecture.css
-runtime: shiny_prerendered
+
 ---
 
 ```{r setup, include=FALSE}
-library(learnr)
 library(tidyverse)
 library(lubridate)
 ```

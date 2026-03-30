@@ -25,153 +25,9 @@ sonnet18_lines <- str_split(sonnet18, "\n")[[1]]
 * `nycflights` data: flights, airlines, airports, planes, weather
 * Keys: **primary keys** identify data within the table, **foreign keys** link to data in other tables.
 * Relations: tables created by **joining** two or more tables. Classify as: mutating or filtering.
-* Types of joins: outer: left, right, and fulll; inner
+* Types of joins: outer: left, right, and full; inner
 * Use of `dplyr` `*_join` functions, `by` argument, `suffix` argument
-
-## Example: What models of planes fly from NYC to Detroit?
-
-```{r}
-filter(flights, dest == "DTW") |>
-  left_join(planes, by = "tailnum") |>
-  count(paste(manufacturer, model)) |> arrange(desc(n))
-```
-
-
-## Inner joins
-
-Inner joins discard entries where a key does not exist in the table. Recall not all destinations are in the airports table (international flights):
-
-```{r}
-fiveam <- filter(flights, year == 2013, month == 1, day == 1, hour == 5)
-left_join(fiveam, airports, by = c("dest" = "faa")) |>
-  select(flight, dest, name)
-```
-
-Inner join would discard that row:
-```{r}
-inner_join(fiveam, airports, by = c("dest" = "faa")) |>
-  select(flight, dest, name)
-```
-
-## Exercise
-
-Use an inner join to find out how many domestic flights there were during the period covered by the `flights` data set.
-
-```{r innerjoin, exercise = TRUE}
-
-```
-
-## Full joins
-
-Left and right joins keep all rows in the respective table (discarding in the other freely). **Full joins** keep all:
-
-```{r}
-left <- head(flights, 10)
-right <- filter(airports, faa %in% c("DTW", "BOS", "ORD", "LAX", "ATL"))
-left_join(left, right, by = c("dest" = "faa")) |> select(flight, dest, name)
-right_join(left, right, by = c("dest" = "faa")) |> select(flight, dest, name)
-full_join(left, right, by = c("dest" = "faa")) |> select(flight, dest, name)
-inner_join(left, right, by = c("dest" = "faa")) |> select(flight, dest, name)
-```
-
-## Multiple matches
-
-Recall that we limited ourseleves to 5 airport codes. Notice the number of rows in this join:
-
-```{r}
-right_join(left, right, by = c("dest" = "faa")) |> select(flight, dest, name)
-```
-
-If A's key matches more than one row in B, A gets duplicated that many times. (This is different than `mutate`.)
-
-Note, same behavior with a left join:
-
-```{r}
-# swapping order of table
-left_join(right, left, by = c("faa" = "dest")) |> select(flight, faa, name)
-```
-
-
-## Keys with multiple columns
-
-Examples thus far have used keys in single columns, but keys can be spread across columns (**compound**). 
-
-```{r}
-left_join(fiveam, weather, by = c("year", "month", "day", "hour", "origin")) |>
-  select(flight, temp, wind_dir, wind_speed)
-```
-
-## Natural joins
-
-To avoid lost of redundant typing, if two tables have a set of columns in common, those will automatically be used to join (**natural join**)
-
-```{r}
-left_join(fiveam, weather) |>
-  select(flight, temp, wind_dir, wind_speed)
-```
-
-## Matching multiple keys
-
-What would have happened if the `weather` table used the column name `airport` instead of `origin`? Since `airport` is not a column in `flights`:
-
-```{r}
-left_join(fiveam, weather, by = c("year", "month", "day", "hour")) |>
-  select(flight, origin.x, temp, wind_speed, origin.y)
-```
-
-In a left join, if the same key matches multiple tables in the right, the row gets duplicated for each.
-
-Lesson: Be careful with natural joins and compound keys.
-
-## Filtering joins
-
-A few times we used the fact that **outer joins** will result in tables with missing entries in order to count some feature.
-
-This pattern is common enough to generate two **filtering join** functions:
-
-- `semi_join(x, y)` keeps all observations in x that have a match in y.
-- `anti_join(x, y)` drops all observations in x that have a match in y.
-
-Big difference from mutating joins is that `y`'s columns are not included.
-
-## Example
-
-Suppose we want to find the top 10 destinations by number of flights:
-
-```{r}
-top_dest <- flights %>%
-  count(dest, sort = TRUE) %>%
-  head(10)
-top_dest
-```
-
-If we *join* to the `top_dest` table, we can get flights to those destinations:
-
-```{r}
-left_join(flights, top_dest) |> # natural join on `dest` column
-  select(flight, dest, n) -> flights_to_tops
-flights_to_tops
-```
-Then filtering out the NAs
-```{r}
-filter(flights_to_tops, !is.na(n))
-```
-
-Do it one step with `semi_join`:
-
-```{r}
-semi_join(flights, top_dest) |>
-  select(flight, dest)
-```
-
-## Exercise
-
-Find the set of flights that were delayed by more than one hour (`dep_delay > 60`). Find the weather patterns associated with those flights and plot the distribution of wind speed with length of delay.
-
-```{r semijoin, exercise = TRUE}
-# you can use a natural join for flights and weather
-
-```
+* Compound keys, natural joins (no `by` argument)
 
 ## Other set operations functions
 
@@ -200,9 +56,143 @@ intersect(flights_to_top, flights_delayed)
 ## Relational data wrap up
 
 * When data are stored in more than one table you need to **join**
-* **Mutating joins** join tables to add columns (and some times rows!)
-* **Filtering joins** use one table to select rows for another
+* **Mutating joins** join tables to add columns (and sometimes rows!)
 * Outer left/right/full joins, inner joins
-* Also useful for linking table to itself 
+* Also useful for linking table to itself
 * Set operations less generally useful, but have some specific uses (e.g., vectors)
+
+## Strings and Factors
+
+R has two data types for representing categorical/nominal data types:
+
+* Strings: character data
+* Factors: integers representing categories with look up table for labels, can be ordered
+
+```{r}
+example_str <- c("you", "say", "goodbye", "i", "say", "hello", "hello", "hello")
+example_str
+example_fct <- factor(example_str)
+example_fct
+```
+
+## Strings vs. factors
+
+Many times two types have the same function, why use one or the other?
+
+- Want to order lexicographically: strings
+- Want to order in other way: factors
+- Treat as text (search, combine): strings
+- Avoid errors from treating as text: factors
+
+There used to be a space saving advantage to factors but that has been eliminated with newer versions of R.
+
+## String basics
+
+A string (or "character vector" in R) is character data enclosed in double `"` or single `'` quotes.
+
+To include quotation marks inside, we need to **escape** them (like `,` in CSVs):
+```{r}
+baberuth <- "George Herman \"Babe\" Ruth Jr., a.k.a. \"the Bambino\" and \"the Sultan of Swat\""
+cat(baberuth) # prints directly instead of displaying as escaped string
+```
+
+## Other special characters
+
+Since `\` is used to escape things, if you need a literal backslash use `\\`.
+* New line: `\n`
+* Tab: `\t`
+* Unicode characters: `\unnnn` (u followed by 4 digit code)
+
+This often come up in searching text for certain patterns.
+
+## Combining strings
+
+If we need to make strings out of other strings, we have two (more or less identical) functions:
+
+* Old school: `paste` (joins with " ") and `paste0` (joins with ""); I frequently use these
+* New school: `str_c` (joins with ""); used in our book
+
+```{r}
+paste("Section", c("100", "200", "300"),
+      "meets on",
+      c("Monday", "Tuesday", "Wednesday"))
+```
+Notice: this is a vector of length 3, use `collapse = "SEP"` to make a single string from a vector.
+
+## Exercise
+
+Join the following using a new line characters `\n` (use the `sep` and `collapse` arguments as necessary) and indent the last two lines using tabs (`\t`). Demonstrate using `cat`.
+
+```{r sonnet18, exercise = TRUE}
+line1 <- "Nor shall death brag thou wander'st in his shade,"
+line2 <- "When in eternal lines to time thou grow'st:"
+line3 <- "So long as men can breathe or eyes can see,"
+line4 <- "So long lives this, and this gives life to thee."
+```
+
+## Properties of strings
+
+```{r, echo = FALSE}
+line1 <- "Nor shall death brag thou wander'st in his shade,"
+line2 <- "When in eternal lines to time thou grow'st:"
+line3 <- "So long as men can breathe or eyes can see,"
+line4 <- "So long lives this, and this gives life to thee."
+```
+
+The `length` function in R will tell you how many items are in a vector:
+
+```{r}
+sonnet18_end <- c(line1, line2, line3, line4)
+length(sonnet18_end)
+```
+
+To find the length of the strings in terms of characters:
+```{r}
+str_length(sonnet18_end) # base::nchar also works
+```
+
+## Subsetting
+
+The `str_sub` function can retrieve or change **substrings**.
+
+```{r}
+str_sub(line1, 11, 20)
+str_sub(line2, 36)
+str_sub(line2, -8)
+line4b <- line4
+str_sub(line4b, 1, 10) <- "REMOVED"
+line4b
+```
+
+
+## Splitting
+
+Here's the full sonnet as a single string:
+```{r}
+sonnet18 <- "Shall I compare thee to a summer's day?\nThou art more lovely and more temperate:\nRough winds do shake the darling buds of May,\nAnd summer's lease hath all too short a date;\nSometime too hot the eye of heaven shines,\nAnd often is his gold complexion dimm'd;\nAnd every fair from fair sometime declines,\nBy chance or nature's changing course untrimm'd;\nBut thy eternal summer shall not fade,\nNor lose possession of that fair thou ow'st;\nNor shall death brag thou wander'st in his shade,\nWhen in eternal lines to time thou grow'st:\n\tSo long as men can breathe or eyes can see,\n\tSo long lives this, and this gives life to thee."
+```
+
+Let's split that up into individual lines as strings in a vector:
+```{r}
+sonnet18_lines <- str_split(sonnet18, "\n") # notice use of new line
+sonnet18_lines
+```
+
+What is happening? Since `sonnet18` could have had multiple entries (vector), `str_split` returns a **list** with splits for each item in the vector:
+```{r}
+str_split(c("a b c", "d e"), " ")
+```
+
+In this case:
+```{r}
+sonnet18_lines <- sonnet18_lines[[1]] # [[]] for lists
+```
+
+## Exercise
+
+**Tokenization** is the process many computer languages use to turn strings into discrete words. Use `str_split` to turn each line of `sonnet18_lines` into individual words. Use `unlist` on the result and answer the question: how many words are there?
+
+```{r tokenize, exercise = TRUE}
+
+```
 
