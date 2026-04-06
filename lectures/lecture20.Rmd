@@ -1,6 +1,6 @@
 ---
-subtitle: "Stats 306: Lecture 20"
-title: "Debugging Continued; Profiling and Benchmarking"
+subtitle: "Data Science 306: Lecture 20"
+title: "Debugging, Profiling and Benchmarking"
 output: 
   learnr::tutorial:
     progressive: true
@@ -12,38 +12,50 @@ runtime: shiny_prerendered
 ```{r setup, include=FALSE}
 library(learnr)
 library(tidyverse)
+```
+## Advanced R
 
-wikiart <- read_tsv("./data/WikiArt-Emotions-All.tsv.gz")
-wikiart <- mutate(wikiart, Year = as.numeric(str_sub(Year, 1, 4)))
+![Advanced R](images/advanced_r_cover.jpg)
 
-pivot_longer(wikiart, 
-             matches(":"), 
-             names_to = c("rating_type", "emotion"),
-             names_sep = ":",
-             values_to = "mean_annotation") -> wa_long
+## Software Bugs
 
-select(wa_long, Title, rating_type, emotion, mean_annotation)
-wa_long <- mutate(wa_long,
-                  emotion = str_replace(emotion, "\\s", ""))
+Quoting Wikipedia:
 
-filter(wa_long, str_detect(rating_type, "Art")) |>
-  group_by(ID) |>
-  arrange(desc(mean_annotation)) |>
-  summarize(strongest_emotion = first(emotion),
-            strongest_emotion_value = first(mean_annotation)) ->
-  wa_art_strongest
+> The term "bug" was used in an account by computer pioneer Grace Hopper, who publicized the cause of a malfunction in an early electromechanical computer.[13] A typical version of the story is:
 
-wa_art_strong_year <- left_join(wikiart, wa_art_strongest, by = "ID")
+>> In 1946, when Hopper was released from active duty, she joined the Harvard Faculty at the Computation Laboratory where she continued her work on the Mark II and Mark III. Operators traced an error in the Mark II to a moth trapped in a relay, coining the term bug. This bug was carefully removed and taped to the log book. Stemming from the first bug, today we call errors or glitches in a program a bug.[14]
+
+(The term may have been in use in other engineering projects before this.)
+
+## How do we know we have bugs?
+
+* We get an error when trying to load the program ("syntax error")
+* We get an error when running the program
+* We get output that does not make sense (perhaps, automated test suites)
+
+## General strategies
+
+* Search for information: look at documentation pages, search the web, ask other people
+* Repeat and find a small example: does it always happen? what kind of input causes the issue? can we write a test?
+* Find the location of the error: the "call stack" is the set of functions that have been called, where in the stack did it happen? Is that actually where the error really is? When was the problem introduced (git useful here)
+* Fix, test, document: try solutions until it works, use a test system to automate testing for the error in the future, write up what you did and why you did it
+
+## Exercise
+
+Lets use a `for` loop to compute the differences between `x[i] - x[i - 1]` for a vector (intentional bug):
+
+```{r errorsearch, exercise = TRUE, eval = FALSE}
+x <- rnorm(10)
+diffs <- length(x) - 1
+for (i in seq_along(x)) {
+  diffs[i] <- x[i] - x[i - 1]
+}
+# Error in diffs[i] <- x[i] - x[i - 1] : replacement has length zero
 ```
 
-## Review
+Exercise: what is this error message telling us? Even if you know, practice using an internet search to find out. Correct the bug.
 
-* Wrapped up interation discussion
-* Introduced `safely` as a way to capture error messages
-* Debugging: finding errors in code
-* General strategies: search, minimal cause, locate, fix and document
-
-## Finding errors in the call stack 
+## Finding errors in the call stack
 
 (Run this in the console)
 
@@ -65,7 +77,7 @@ f("hello")
 
 Tools:
 
-* `traceback()
+* `traceback()`
 * `library(rlang)` and `with_abort(f("hello"))` and `last_trace()`
 
 ## Using RStudio's debugger
@@ -91,40 +103,48 @@ Add `browser()` in a function to pause execution and input commands:
 
 Open up `lecture20_debug.R`
 
-## Debugging RMarkdown
-
-If the problem only occurs when knitting, you will need to knit the document from the console using:
-
-```{r, eval = FALSE}
-rmarkdown::render("path/to/file.Rmd")
-```
-
-## Exercise
-
-Open up `lecture20_debug_markdown.Rmd` and try to knit it.
-
-Use `rmarkdown::render("lectures/lecture20_debug_markdown.Rmd` to find and fix the problem.
-
 ## Signals
 
-R has several ways of signaling to the user that something is going on.
+R has three levels of signaling to the user that something is going on:
 
-Messages:
+* **Messages** (`message()`): informational, don't indicate a problem
+* **Warnings** (`warning()`): something is off, but execution continues
+* **Errors** (`stop()`): something is wrong, execution halts
+
 ```{r}
 message("The value of pi is ", pi)
-```
-
-Warnings:
-```{r}
 warning("pi is not 3")
 ```
-
-Errors:
 ```{r, eval = FALSE}
 stop("You said pi was 3")
 ```
 
-R has a `try`/`catch` mechanism for handling errors, though we won't go into detail.
+Here's a more realistic example — a function that validates data and uses all three levels:
+
+```{r}
+clean_percentage <- function(x) {
+  message("Cleaning ", length(x), " values")
+  if (any(x > 1 & x <= 100, na.rm = TRUE)) {
+    warning("Values > 1 detected; assuming 0-100 scale, dividing by 100")
+    x <- ifelse(x > 1, x / 100, x)
+  }
+  if (any(x < 0 | x > 100, na.rm = TRUE)) {
+    stop("Values outside [0, 100] range cannot be percentages")
+  }
+  x
+}
+
+clean_percentage(c(0.5, 0.75, 50, 99))
+```
+
+R has a `tryCatch` mechanism for handling signals programmatically:
+
+```{r}
+tryCatch(
+  log(-1),
+  warning = function(w) paste("Caught warning:", conditionMessage(w))
+)
+```
 
 ## Debugging warnings
 
@@ -176,7 +196,7 @@ both(1:5)
 
 ## Performance
 
-The **performance** of a program is who quickly it can execute its answer.
+The **performance** of a program is how quickly it can execute its answer.
 
 Performance can depend on many things:
 
@@ -193,7 +213,7 @@ To measure our program, we will feed it some input and the either
 * **Profile**: see how long each step (function) of the program takes.
 * **Benchmark**: accurate measurement of time of particular function.
 
-Big difference: profiling modifies the program slightly and may miss some functions. Benchmarking gives more real world results but limited it what it reports.
+Key distinction: profiling modifies the program slightly and may miss some functions. Benchmarking gives more real world results but is limited in what it reports.
 
 ## Profiling in R
 
@@ -225,7 +245,7 @@ Smaller interval means more precise, but runs slower.
 
 ## `profvis` library
 
-The output can be hard to read, so we prefer to use the `profviz` library.
+The output can be hard to read, so we prefer to use the `profvis` library.
 
 ```{r, eval = FALSE}
 library(profvis)
@@ -305,9 +325,17 @@ bm
 
 ## Exercise
 
-Write a microbench mark to compare squaring a value versus multiplying a vector by itself. Which method is faster? What about raising a vector to the 8th power? How would you use this to write `intpow(x, power)`? Write this and benchmark the result.
+Write a microbenchmark to compare squaring a value (`x^2`) versus multiplying a vector by itself (`x * x`). Which method is faster?
 
 ```{r squares, exercise = TRUE}
+x <- rnorm(1000)
+```
+
+## Exercise
+
+What about raising a vector to the 8th power? How would you use repeated squaring to write `intpow(x, power)` that avoids calling `^`? Write this function and benchmark the result against `x^8`.
+
+```{r intpow, exercise = TRUE}
 x <- rnorm(1000)
 ```
 
@@ -334,9 +362,9 @@ Compare the median function to using `quantile(x, q = 0.5)`. Which is faster?
 
 ## Keeping things in perspective
 
-When microbenchmarking, we observe one operation takes 10ns and one takes 100ns. Is the 100ns version immediately preferable?
+When microbenchmarking, we observe one operation takes 10ns and one takes 100ns. Is the 10ns version immediately preferable?
 
-Only if it is going to be called a lot. 
+Only if it is going to be called a lot. If a function runs 10 times per script, saving 90ns per call saves 900ns total — not worth optimizing. But if it runs inside a loop 10 million times, that's almost a full second.
 
 Remember to keep things in perspective and use profiling to identify hot spots in actual evaluation and benchmarking to help improve those areas that need the most improvement.
 
